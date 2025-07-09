@@ -1,0 +1,3 @@
+/Users/noahmalhi/Projects/student_management/CMakeFiles/studentManagement.dir
+/Users/noahmalhi/Projects/student_management/CMakeFiles/edit_cache.dir
+/Users/noahmalhi/Projects/student_management/CMakeFiles/rebuild_cache.dir
