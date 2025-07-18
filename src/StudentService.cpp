@@ -2,11 +2,10 @@
 #include <iostream>
 #include <curl/curl.h>
 
-static constexpr int NUM_TRIES = 3;
-
+static constexpr int NUM_RETRIES = 3;
 
 // Function defintions
-int handleCurleError(CURLcode error);
+bool handleCurleError(CURLcode error);
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp);
     
 StudentService::StudentService() {
@@ -22,9 +21,8 @@ std::string StudentService::fetchStudentData() {
     if(curlHandle) {
 
         // tells libcurl how to behave, sets appropriate options
-        
         CURLcode res;
-        for(auto i = 0; i < NUM_TRIES; i++) {
+        for(auto i = 0; i < NUM_RETRIES; i++) {
 
             curl_easy_setopt(curlHandle, CURLOPT_URL, "https://mocki.io/v1/f6d40d07-be10-4107-9730-5ca9ca7f94f2");
             curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -33,19 +31,11 @@ std::string StudentService::fetchStudentData() {
             // Perform request
             res = curl_easy_perform(curlHandle);
 
-            // TODO:: Handle res error codes
             if(res != CURLE_OK)
             {
-                std::cout << "Handling error" << std::endl;
-                handleCurleError(res);
-            }
-            else
-            {
-                break;
-            }
+                if(!handleCurleError(res)) { return ""; }
+            }  else { break; }
         }
-
-        curl_easy_cleanup(curlHandle);
     }
     else 
     {
@@ -54,20 +44,32 @@ std::string StudentService::fetchStudentData() {
     return studentDataBuffer;
 }
 
-int handleCurleError(CURLcode error) {
+bool handleCurleError(CURLcode error) {
+    std::cout << "Error: ";
     switch(error) {
-        case CURLE_UNSUPPORTED_PROTOCOL:
-        case CURLE_FAILED_INIT:
+            std::cout << "Curl failed to initalized" << '\n';
         case CURLE_COULDNT_CONNECT:
+            std::cout << "Curl could not connect" << '\n';
         case CURLE_COULDNT_RESOLVE_HOST:
+            std::cout << "Curl could not resolve host" << '\n';
         case CURLE_COULDNT_RESOLVE_PROXY:
+            std::cout << "Curl could not resolve proxy" << '\n';
         case CURLE_HTTP_RETURNED_ERROR:
+            std::cout << "HTTP returned error" << '\n';
         case CURLE_READ_ERROR:
-        case CURLE_TOO_MANY_REDIRECTS:
+            std::cout << "Curl failed to read" << '\n';
+            std::cout << "Too many redirects" << '\n';
         case CURLE_GOT_NOTHING:
+            std::cout << "Received nothing!" << '\n';
         case CURLE_RECV_ERROR:
+            std::cout << "Failed to receive" << '\n';
+            std::cout << "Attempting to retry request" << '\n';
+            return true;
+        case CURLE_UNSUPPORTED_PROTOCOL:
+        case CURLE_FAILED_INIT: // Failed curl_easy_init
+        case CURLE_TOO_MANY_REDIRECTS:  
         default:
-            return -1; // Error - Do NOT retry
+            return false; // Error - Do NOT retry
     }
 }
 

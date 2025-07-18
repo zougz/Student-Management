@@ -1,17 +1,17 @@
 #include "Student.hpp"
-#include <map>
+#include <unordered_map>
 
 class StudentManager {
 public:
-    StudentManager(const std::string& studentData); 
+    StudentManager(); 
     ~StudentManager();
 
-    void parseRawStudentData(const std::string& data);
+    int parseRawStudentData(const std::string& data);
      
     Student getStudent(std::string name);
     Student getStudent(int id);
 
 private:
-    std::map<int, Student> studentMap;
     std::string rawStudentData;
+    std::unordered_map<int, Student> studentMap;
 };
