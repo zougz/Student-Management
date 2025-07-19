@@ -9,18 +9,19 @@
 #include "services/StudentService.hpp"
 
 
-static constexpr int maxInput = 20;
+static constexpr int maxInputMenu = 1;
+static constexpr int numRetries = 3;
+static constexpr int maxNameLength = 15;
 static bool running = true;
 
 void printMainHelpPrompt() {
-    std::cout << "Enter 1: To View All Data \n Enter 2: To search for specific student \
-        \n Enter 3: To exit Program" << '\n';
+    std::cout << "Enter 1: To View All Data \nEnter 2: To search for specific student \
+        \nEnter 3: To exit Program" << '\n';
     std::cout << "Press 'h' for help" << '\n';
 }
 
 int displayAllMenu() {
     
-    int numRetries = 3;
     int attempt = 0;
     std::string userInput;
     bool success = false;
@@ -31,36 +32,75 @@ int displayAllMenu() {
 
         std::cin >> userInput;
 
-        int inputSize = 1; // In this case only expect user input to be single character
-        if(userInput.size() > inputSize) { 
+        if(userInput.size() > maxInputMenu) { 
             std::cout << "User input is too large!!, Try Again" << '\n';
         } else {
-            switch(userInput) {
-                case 1:
+            char command = userInput[0];
+            switch(command) {
+                case '1':
                     success = true;
                     // Handle Alphabetical
                     break;
-                case 2:
+                case '2':
                     success = true;
                     // Handle gpa descending
                     break;
-                case 3:
+                case '3':
                     success = true;
                     // Handle gpa ascending
                     break;
+                case 'h':
+                    break;
                 default:
-                    std::cout << "Invalid user input" << '\n';
-                    success = false;
+                    std::cout << "Error: Invalid user input. Try again" << '\n';
+                    ++attempt;
                     break;
             }
         }
     }
+
+    return success;
+}
+
+bool isNameValid(const std::string& name) {
+    return std::all_of(name.begin(), name.end(), [](char ch) {
+            return std::isalpha(static_cast<unsigned char>(ch)) || ch == '-';
+    });
+}
+
+int userInputName(std::string& firstName, std::string& lastName) {
+    for(auto tries = 0; tries < numRetries; ++tries) {
+        std::cout << "Enter student last name\n";
+        std::cin >> lastName;
+        if(lastName.size() > maxNameLength && !isNameValid(lastName)) {
+            std::cout << "Error: Inputed last name is too long! Retry\n";
+        } else {
+            std::cout << "Enter student first name\n";
+            std::cin >> firstName;
+            if(lastName.size() > maxNameLength && isNameValid(lastName)) {
+                std::cout << "Error: Inputed last name is too long! Retry\n";
+            } else { return 0; } 
+        }
+    }
+    return -1;
+}
+
+int singleStudentRequest(const StudentManager& studentManager) {
+    std::string firstName;
+    std::string lastName;
+    if(userInputName(firstName, lastName) == -1) return -1;
+    studentManager.requestSingleStudentData(firstName, lastName);
 }
 
 int populateStudentManager(StudentService& studentService, StudentManager& studentManager) {
- 
-    std::string studentBuffer = studentService.fetchStudentData(); 
-    int result = studentManager.parseRawStudentData(studentBuffer);
+
+    int result; 
+    for(auto tries = 0; tries < numRetries; ++tries) {
+        std::string studentBuffer = studentService.fetchStudentData(); 
+        result = studentManager.parseRawStudentData(studentBuffer);
+        if (result == 0) break;
+    }
+    return result;
 }
 
 int main(int argc, char *argv[]) {
@@ -72,7 +112,8 @@ int main(int argc, char *argv[]) {
     
     std::future<int> dataFuture = std::async(std::launch::async , [&]() {
        return populateStudentManager(studentService, studentManager);
-    }
+    });
+
     std::cout << "Welcome to the Student Database!" << '\n';
     printMainHelpPrompt();
 
@@ -82,24 +123,27 @@ int main(int argc, char *argv[]) {
     while(running) {
 
         std::cin >> userInput; 
-        if(userInput.size() > maxInput) {
-            std::cout << "ERROR: User input to too large! Try Again" << '\n';
+        if(userInput.size() > maxInputMenu) {
+            std::cout << "ERROR: User input invalid! Try Again" << '\n';
         } else {
             if(!dataLoaded && dataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
                 int studentPullResult = dataFuture.get();
                 if(studentPullResult == -1) {
-                    std::cout << "Failed to fetch data from database" << '\n';
+                    std::cout << "Error: Failed to fetch data from database" << '\n';
+                    running = false;
                     break;
                 }
                 dataLoaded = true;
             }
-            switch (userInput) {
-                case 1:
+            char command = userInput[0];
+            switch (command) {
+                case '1':
                     displayAllMenu();
                     break;
-                case 2:
+                case '2':
+                    singleStudentRequest(studentManager);
                     break;
-                case 3:
+                case '3':
                     running = false;
                     //TODO:May want to write to some save storage
                     //saveState();

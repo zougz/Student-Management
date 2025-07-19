@@ -21,7 +21,6 @@ int StudentManager::parseRawStudentData(const std::string& data) {
         return -1; 
     }
 
-
     for(const auto& student : studentProfiles) {
 
         Student studentObj;
